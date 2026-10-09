@@ -1,0 +1,44 @@
+# Dependencies
+Package.resolved
+Packages/
+.build/
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+*.xcscheme
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.plist
+
+# Derived Data
+DerivedData/
+
+# User Interface State
+*.interface
+
+# Swift Package Manager
+*.build/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+*.xctest/
+*.xctestlog
