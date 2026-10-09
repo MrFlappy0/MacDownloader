@@ -2,6 +2,9 @@ import Foundation
 import Alamofire
 import SwiftSoup
 
+// Import FFmpeg wrapper
+public typealias FFmpeg = FFmpegWrapper
+
 public enum DownloadError: Error {
     case invalidURL
     case downloadFailed(Error)
@@ -9,6 +12,9 @@ public enum DownloadError: Error {
     case noVideoFound
     case unsupportedSite
     case extractionFailed(String)
+    case ffmpegError(FFmpegError)
+    case conversionFailed(String)
+    case ffmpegNotAvailable
 }
 
 public struct VideoInfo {
@@ -18,14 +24,23 @@ public struct VideoInfo {
     public let duration: TimeInterval?
     public let quality: String?
     public let format: String
+    public let availableQualities: [String]
+    public let availableFormats: [String]
+    public let isAudioOnly: Bool
     
-    public init(title: String, url: URL, thumbnailURL: URL? = nil, duration: TimeInterval? = nil, quality: String? = nil, format: String = "mp4") {
+    public init(title: String, url: URL, thumbnailURL: URL? = nil, duration: TimeInterval? = nil, 
+                quality: String? = nil, format: String = "mp4",
+                availableQualities: [String] = [], availableFormats: [String] = [],
+                isAudioOnly: Bool = false) {
         self.title = title
         self.url = url
         self.thumbnailURL = thumbnailURL
         self.duration = duration
         self.quality = quality
         self.format = format
+        self.availableQualities = availableQualities
+        self.availableFormats = availableFormats
+        self.isAudioOnly = isAudioOnly
     }
 }
 
@@ -53,6 +68,8 @@ public class VideoDownloader {
     
     public weak var delegate: DownloadDelegate?
     
+    public var ffmpegAvailable: Bool = false
+    
     public init() {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 120
@@ -60,6 +77,14 @@ public class VideoDownloader {
         configuration.httpAdditionalHeaders = ["User-Agent": userAgent]
         
         self.session = Session(configuration: configuration)
+        
+        // Check FFmpeg availability
+        self.ffmpegAvailable = FFmpegWrapper.isFFmpegAvailable
+    }
+    
+    public func checkFFmpeg() throws {
+        try FFmpegWrapper.checkFFmpeg()
+        self.ffmpegAvailable = true
     }
     
     public func extractVideoInfo(from urlString: String) async throws -> [VideoInfo] {
@@ -96,7 +121,8 @@ public class VideoDownloader {
         }
     }
     
-    public func downloadVideo(from urlString: String, quality: String? = nil, outputPath: URL? = nil) async throws -> URL {
+    public func downloadVideo(from urlString: String, quality: String? = nil, outputPath: URL? = nil, 
+                               convertTo format: String? = nil, audioOnly: Bool = false) async throws -> URL {
         let videoInfos = try await extractVideoInfo(from: urlString)
         
         guard !videoInfos.isEmpty else {
@@ -113,6 +139,30 @@ public class VideoDownloader {
         }
         
         let outputURL = outputPath ?? getDefaultOutputURL(for: videoInfo)
+        
+        // If conversion is requested
+        if let format = format, !format.isEmpty {
+            let downloadedURL = try await downloadVideoInfo(videoInfo, to: outputURL)
+            
+            // Convert the file
+            if audioOnly {
+                let audioOutputURL = outputURL.deletingPathExtension().appendingPathExtension(format)
+                try FFmpegWrapper.extractAudio(downloadedURL.path, to: audioOutputURL)
+                
+                // Remove the original video file
+                try FileManager.default.removeItem(at: downloadedURL)
+                
+                return audioOutputURL
+            } else {
+                let convertedOutputURL = outputURL.deletingPathExtension().appendingPathExtension(format)
+                try FFmpegWrapper.convertToMP4(downloadedURL.path, to: convertedOutputURL, quality: quality ?? "high")
+                
+                // Remove the original file
+                try FileManager.default.removeItem(at: downloadedURL)
+                
+                return convertedOutputURL
+            }
+        }
         
         return try await downloadVideoInfo(videoInfo, to: outputURL)
     }
