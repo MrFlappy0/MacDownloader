@@ -1,0 +1,85 @@
+#compdef macdownloader
+
+_macdownloader() {
+    local -a options
+    local -a commands
+    local -a qualities
+    
+    options=(
+        '--help[Show help message]'
+        '-h[Show help message]'
+        '--version[Show version]'
+        '-v[Show version]'
+    )
+    
+    commands=(
+        'download:Download a video'
+        'd:Download a video (shortcut)'
+        'info:Get video information'
+        'i:Get video information (shortcut)'
+        'batch:Batch download from file'
+        'b:Batch download from file (shortcut)'
+        'list:List supported sites'
+        'l:List supported sites (shortcut)'
+    )
+    
+    qualities=(
+        '1080p:1080p quality'
+        '720p:720p quality'
+        '480p:480p quality'
+        '360p:360p quality'
+        'HD:High Definition'
+        'SD:Standard Definition'
+        'auto:Auto quality'
+    )
+    
+    _arguments -C \
+        "${options[@]}" \
+        '1:command:->command' \
+        '*:: :->args'
+    
+    case "$state" in
+        command)
+            _describe -t commands 'command' commands
+            ;;
+        args)
+            case "$line[1]" in
+                download|d|batch|b)
+                    _arguments \
+                        '-q[Specify quality]:quality:($qualities)' \
+                        '--quality[Specify quality]:quality:($qualities)' \
+                        '-o[Specify output directory]:output directory:_files -/' \
+                        '--output[Specify output directory]:output directory:_files -/' \
+                        '-n[Specify filename]:filename:()' \
+                        '--filename[Specify filename]:filename:()' \
+                        '--overwrite[Overwrite existing files]' \
+                        '--no-progress[Hide download progress]' \
+                        '--help[Show help]' \
+                        '-h[Show help]'
+                    ;;
+                info|i)
+                    _arguments \
+                        '-q[Filter by quality]:quality:($qualities)' \
+                        '--quality[Filter by quality]:quality:($qualities)' \
+                        '--json[Output in JSON format]' \
+                        '--help[Show help]' \
+                        '-h[Show help]'
+                    ;;
+                batch|b)
+                    _arguments \
+                        '-f[Path to file with URLs]:file:_files' \
+                        '--file[Path to file with URLs]:file:_files' \
+                        '-o[Specify output directory]:output directory:_files -/' \
+                        '--output[Specify output directory]:output directory:_files -/' \
+                        '-q[Specify quality]:quality:($qualities)' \
+                        '--quality[Specify quality]:quality:($qualities)' \
+                        '--overwrite[Overwrite existing files]' \
+                        '--help[Show help]' \
+                        '-h[Show help]'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_macdownloader "$@"
